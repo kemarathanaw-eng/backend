@@ -1,0 +1,321 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Employee Portal</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Employee Portal</h1>
+    <p>One-color teal theme. Full frontend to register, login, browse, create, deactivate employees, and use filters.</p>
+
+    <div id="alert" class="alert" style="display: none;"></div>
+
+    <div id="authSection" class="section card">
+      <h2>Authentication</h2>
+      <div class="grid">
+        <div><label class="label" for="name">Name (register)</label><input id="name" type="text" placeholder="John Doe" /></div>
+        <div><label class="label" for="email">Email</label><input id="email" type="email" placeholder="teste@example.com" /></div>
+        <div><label class="label" for="authPassword">Password</label><input id="authPassword" type="password" placeholder="********" /></div>
+        <div class="actions" style="align-items:flex-end; margin-top: 0.4rem;">
+          <button id="registerBtn">Register</button>
+          <button id="loginBtn">Login</button>
+          <button id="logoutBtn" style="display: none;">Logout</button>
+        </div>
+      </div>
+      <p style="font-size:0.86rem; color:#3d5a5d; margin-top:0.6rem;">Register user first, then login, then manage employees.</p>
+    </div>
+
+    <div id="dataSection" class="section card" style="display: none;">
+      <div class="actions" style="justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 0.8rem;">
+        <div>
+          <h2>Employee Directory</h2>
+          <p>Pagination + filters + create + deactivate</p>
+        </div>
+        <div>
+          <input id="searchKey" type="text" placeholder="Search first/last/email" style="width: 220px; margin-right: 0.5rem;" />
+          <button id="refreshBtn">Refresh</button>
+        </div>
+      </div>
+
+      <div class="grid" style="margin-bottom: 0.8rem;">
+        <div><label class="label" for="page">Page</label><select id="page"><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></div>
+        <div><label class="label" for="limit">Limit</label><select id="limit"><option value="5">5</option><option value="10" selected>10</option><option value="20">20</option></select></div>
+        <div><label class="label" for="departmentFilter">Department</label><select id="departmentFilter"><option value="">All</option></select></div>
+        <div><label class="label" for="roleFilter">Role</label><select id="roleFilter"><option value="">All</option></select></div>
+      </div>
+
+      <div class="card" style="padding:0.8rem; margin-bottom:0.9rem;">
+        <h3 style="margin:0 0 0.7rem 0;">Create Employee</h3>
+        <div class="grid">
+          <div><label class="label">First Name</label><input id="firstName" type="text" /></div>
+          <div><label class="label">Last Name</label><input id="lastName" type="text" /></div>
+          <div><label class="label">Email</label><input id="employeeEmail" type="email" /></div>
+          <div><label class="label">Phone</label><input id="phone" type="text" /></div>
+          <div><label class="label">Department</label><select id="departmentId"><option value="">Choose</option></select></div>
+          <div><label class="label">Role</label><select id="roleId"><option value="">Choose</option></select></div>
+          <div><label class="label">Hire Date</label><input id="hireDate" type="date" /></div>
+          <div><label class="label">Salary</label><input id="salary" type="number" min="0" step="0.01" /></div>
+        </div>
+        <div style="margin-top:.5rem;"><button id="createEmployeeBtn">Create Employee</button></div>
+      </div>
+
+      <div id="tableWrap" style="overflow-x:auto"></div>
+      <div class="pager"><span id="summary">No records loaded yet</span></div>
+    </div>
+  </div>
+
+  <script>
+    const apiBase = `${window.location.origin}/api`;
+    const alertEl = document.getElementById('alert');
+    const dataSection = document.getElementById('dataSection');
+
+    const registerBtn = document.getElementById('registerBtn');
+    const loginBtn = document.getElementById('loginBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const createBtn = document.getElementById('createEmployeeBtn');
+
+    const pageSelect = document.getElementById('page');
+    const limitSelect = document.getElementById('limit');
+    const deptFilter = document.getElementById('departmentFilter');
+    const roleFilter = document.getElementById('roleFilter');
+    const searchKey = document.getElementById('searchKey');
+    const tableWrap = document.getElementById('tableWrap');
+    const summary = document.getElementById('summary');
+
+    const nameInput = document.getElementById('name');
+    const emailInput = document.getElementById('email');
+    const authPasswordInput = document.getElementById('authPassword');
+
+    const firstNameInput = document.getElementById('firstName');
+    const lastNameInput = document.getElementById('lastName');
+    const employeeEmailInput = document.getElementById('employeeEmail');
+    const phoneInput = document.getElementById('phone');
+    const departmentIdInput = document.getElementById('departmentId');
+    const roleIdInput = document.getElementById('roleId');
+    const hireDateInput = document.getElementById('hireDate');
+    const salaryInput = document.getElementById('salary');
+
+    const showMessage = (msg, isError = false) => {
+      alertEl.style.display = 'block';
+      alertEl.className = isError ? 'alert error' : 'alert';
+      alertEl.innerText = msg;
+      setTimeout(() => { alertEl.style.display = 'none'; }, 3500);
+    };
+
+    const getToken = () => localStorage.getItem('employee_portal_token');
+    const setToken = token => localStorage.setItem('employee_portal_token', token);
+    const clearToken = () => localStorage.removeItem('employee_portal_token');
+    const isLoggedIn = () => !!getToken();
+
+    const authHeaders = () => ({
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getToken()}`
+    });
+
+    const setUiState = () => {
+      if (isLoggedIn()) {
+        logoutBtn.style.display = 'inline-block';
+        dataSection.style.display = 'block';
+        loginBtn.disabled = true;
+        registerBtn.disabled = true;
+      } else {
+        logoutBtn.style.display = 'none';
+        dataSection.style.display = 'none';
+        loginBtn.disabled = false;
+        registerBtn.disabled = false;
+      }
+    };
+
+    const apiRequest = async (path, method = 'GET', body) => {
+      const options = { method, headers: authHeaders() };
+      if (body) options.body = JSON.stringify(body);
+
+      const res = await fetch(`${apiBase}${path}`, options);
+      const text = await res.text();
+
+      let json = null;
+      if (text) {
+        try {
+          json = JSON.parse(text);
+        } catch (err) {
+          console.error('Invalid JSON response from', path, 'raw:', text);
+          throw new Error(`Invalid JSON response from server: ${text.slice(0, 300)}`);
+        }
+      }
+
+      if (!res.ok) {
+        const message = json?.message || json?.error || `Request failed with HTTP ${res.status}`;
+        throw new Error(message);
+      }
+
+      if (res.ok && !text) return null; // 204 No Content etc
+      return json?.data ?? json;
+    };
+
+    const registerUser = async () => {
+      const name = nameInput.value.trim();
+      const email = emailInput.value.trim();
+      const password = authPasswordInput.value.trim();
+      if (!name || !email || !password) return showMessage('Name, email, password required', true);
+      try {
+        await fetch(`${apiBase}/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, password }) });
+        showMessage('Registered. Then login.');
+      } catch (err) {
+        showMessage('Register failed: ' + err.message, true);
+      }
+    };
+
+    const login = async () => {
+      const email = emailInput.value.trim();
+      const password = authPasswordInput.value.trim();
+      if (!email || !password) return showMessage('Email + password required', true);
+      try {
+        const data = await apiRequest('/auth/login', 'POST', { email, password });
+        setToken(data.token);
+        setUiState();
+        await loadMeta();
+        await loadData();
+        showMessage('Login successful.');
+      } catch (err) {
+        showMessage('Login failed: ' + err.message, true);
+      }
+    };
+
+    const logout = async () => {
+      try { await apiRequest('/auth/logout', 'POST'); } catch (_) {}
+      clearToken();
+      setUiState();
+      showMessage('Logged out successfully.');
+    };
+
+    const loadMeta = async () => {
+      if (!isLoggedIn()) return;
+      try {
+        const departments = await apiRequest('/departments');
+        const roles = await apiRequest('/roles');
+
+        deptFilter.innerHTML = '<option value="">All</option>' + departments.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+        roleFilter.innerHTML = '<option value="">All</option>' + roles.map(r => `<option value="${r.id}">${r.title}</option>`).join('');
+
+        departmentIdInput.innerHTML = '<option value="">Choose</option>' + departments.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+        roleIdInput.innerHTML = '<option value="">Choose</option>' + roles.map(r => `<option value="${r.id}">${r.title}</option>`).join('');
+      } catch (err) {
+        showMessage('Failed to load departments/roles: ' + err.message, true);
+      }
+    };
+
+    const createEmployee = async () => {
+      const payload = {
+        first_name: firstNameInput.value.trim(),
+        last_name: lastNameInput.value.trim(),
+        email: employeeEmailInput.value.trim(),
+        phone: phoneInput.value.trim(),
+        department_id: departmentIdInput.value,
+        role_id: roleIdInput.value,
+        hire_date: hireDateInput.value || new Date().toISOString().slice(0,10),
+        salary: Number(salaryInput.value)
+      };
+      if (!payload.first_name || !payload.last_name || !payload.email || !payload.department_id || !payload.role_id || !payload.salary) {
+        return showMessage('Please complete all fields to create employee.', true);
+      }
+      try {
+        await apiRequest('/employees', 'POST', payload);
+        showMessage('Employee created.');
+        await loadData();
+      } catch (err) {
+        showMessage('Create employee failed: ' + err.message, true);
+      }
+    };
+
+    const deactivateEmployee = async (id) => {
+      try {
+        await apiRequest(`/employees/${id}`, 'DELETE');
+        showMessage('Employee deactivated.');
+        await loadData();
+      } catch (err) {
+        showMessage('Deactivate failed: ' + err.message, true);
+      }
+    };
+
+    const loadData = async () => {
+      if (!isLoggedIn()) return;
+      tableWrap.innerHTML = '<p>Loading...</p>';
+      try {
+        const page = Number(pageSelect.value);
+        const limit = Number(limitSelect.value);
+        const result = await apiRequest(`/employees?page=${page}&limit=${limit}`);
+        const items = Array.isArray(result) ? result : result.data || [];
+        const totalCount = result.count || items.length;
+
+        const filtered = items.filter(emp => {
+          if (deptFilter.value && emp.department_id !== deptFilter.value) return false;
+          if (roleFilter.value && emp.role_id !== roleFilter.value) return false;
+          const search = searchKey.value.trim().toLowerCase();
+          if (!search) return true;
+          return [emp.first_name, emp.last_name, emp.email].join(' ').toLowerCase().includes(search);
+        });
+
+        if (!filtered.length) {
+          tableWrap.innerHTML = '<p>No employees found with filters.</p>';
+          summary.textContent = `Items: 0 / Total: ${totalCount}`;
+          return;
+        }
+
+        const table = document.createElement('table');
+        const thead = document.createElement('thead');
+        const headings = ['ID', 'First', 'Last', 'Email', 'Phone', 'Department', 'Role', 'Hire Date', 'Salary', 'Active', 'Action'];
+        const headerRow = document.createElement('tr');
+        headings.forEach(h => { const th = document.createElement('th'); th.textContent = h; headerRow.appendChild(th); });
+        thead.appendChild(headerRow); table.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+
+        filtered.forEach(emp => {
+          const tr = document.createElement('tr');
+          const cells = [emp.id, emp.first_name, emp.last_name, emp.email, emp.phone || '-', emp.departments?.name || emp.department_id, emp.roles?.title || emp.role_id, new Date(emp.hire_date).toLocaleDateString('en-GB'), emp.salary, emp.is_active ? 'Yes' : 'No'];
+          cells.forEach(c => { const td = document.createElement('td'); td.textContent = c; tr.appendChild(td); });
+
+          const actionTd = document.createElement('td');
+          const btn = document.createElement('button');
+          btn.textContent = 'Deactivate';
+          btn.className = 'danger';
+          btn.addEventListener('click', () => deactivateEmployee(emp.id));
+          actionTd.appendChild(btn);
+          tr.appendChild(actionTd);
+
+          tbody.appendChild(tr);
+        });
+
+        table.appendChild(tbody);
+        tableWrap.innerHTML = '';
+        tableWrap.appendChild(table);
+        summary.textContent = `Showing ${filtered.length} of ${totalCount}`;
+      } catch (err) {
+        tableWrap.innerHTML = '';
+        summary.textContent = '';
+        showMessage('Could not load employees: ' + err.message, true);
+      }
+    };
+
+    registerBtn.addEventListener('click', registerUser);
+    loginBtn.addEventListener('click', login);
+    logoutBtn.addEventListener('click', logout);
+    refreshBtn.addEventListener('click', loadData);
+    pageSelect.addEventListener('change', loadData);
+    limitSelect.addEventListener('change', loadData);
+    deptFilter.addEventListener('change', loadData);
+    roleFilter.addEventListener('change', loadData);
+    searchKey.addEventListener('input', loadData);
+    createBtn.addEventListener('click', createEmployee);
+
+    setUiState();
+    if (isLoggedIn()) {
+      loadMeta().then(loadData);
+    }
+  </script>
+</body>
+</html>

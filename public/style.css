@@ -1,0 +1,64 @@
+:root {
+  --primary: #006d77;
+  --primary-light: #83c5be;
+  --primary-dark: #004f56;
+  --bg: #e8f6f5;
+  --text: #05445e;
+  --muted: #2f4f4f;
+  --danger: #9d0208;
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, var(--bg) 0%, #ffffff 70%);
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.container {
+  max-width: 1140px;
+  margin: 1.5rem auto;
+  padding: 1.2rem;
+  background: #fff;
+  border: 1px solid var(--primary-light);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 22px rgba(0,0,0,.08);
+}
+
+h1, h2 { color: var(--primary-dark); margin-top: 0; }
+.section { margin-bottom: 1.2rem; }
+
+.card {
+  background: #f4ffff;
+  border: 1px solid var(--primary-light);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 0.75rem; }
+.label { font-size: 0.9rem; margin-bottom: 0.15rem; font-weight: 600; }
+
+input, select, button { font: inherit; }
+input, select { width: 100%; border: 1px solid var(--primary); border-radius: 6px; padding: 0.55rem .75rem; }
+button { border: 0; border-radius: 7px; padding: 0.6rem 1rem; background: var(--primary); color: #fff; cursor: pointer; transition: .2s; }
+button:hover { background: var(--primary-dark); }
+button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.alert { border-radius: 6px; padding: 0.7rem; margin-bottom: 1rem; color: white; background: var(--primary); }
+.alert.error { background: var(--danger); }
+
+table { width: 100%; border-collapse: collapse; margin-top: .6rem; min-width: 760px; }
+table th, table td { border-bottom: 1px solid #dcefefff; padding: .6rem .5rem; text-align: left; }
+table th { background: var(--primary-light); color: #03303d; }
+table tbody tr:nth-child(even) { background: #f7ffff; }
+
+.actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.badge { display: inline-block; padding: 0.18rem 0.5rem; border-radius: 5px; font-size: .75rem; background: #83c5be; color: #003d46; text-transform: uppercase; font-weight: 700; }
+.danger { background: #d90429; color: #fff; }
+.pager { display: flex; justify-content: space-between; align-items: center; margin-top: 0.7rem; }
+
+@media (max-width: 768px) { .grid { grid-template-columns: 1fr; } table { min-width: 100%; } }
